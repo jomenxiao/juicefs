@@ -763,7 +763,7 @@ func (m *baseMeta) Create(ctx Context, parent Ino, name string, mode uint16, cum
 		eno = 0
 	}
 	if eno == 0 && inode != nil {
-		m.of.Open(*inode, attr)
+		m.of.Open(*inode, attr, -1)
 	}
 	return eno
 }
@@ -870,7 +870,7 @@ func (m *baseMeta) Rename(ctx Context, parentSrc Ino, nameSrc string, parentDst 
 	return m.en.doRename(ctx, m.checkRoot(parentSrc), nameSrc, m.checkRoot(parentDst), nameDst, flags, inode, attr)
 }
 
-func (m *baseMeta) Open(ctx Context, inode Ino, flags uint32, attr *Attr) syscall.Errno {
+func (m *baseMeta) Open(ctx Context, inode Ino, flags uint32, attr *Attr, expire time.Duration) syscall.Errno {
 	if m.conf.ReadOnly && flags&(syscall.O_WRONLY|syscall.O_RDWR|syscall.O_TRUNC|syscall.O_APPEND) != 0 {
 		return syscall.EROFS
 	}
@@ -896,7 +896,7 @@ func (m *baseMeta) Open(ctx Context, inode Ino, flags uint32, attr *Attr) syscal
 		}
 	}
 	if err == 0 {
-		m.of.Open(inode, attr)
+		m.of.Open(inode, attr, expire)
 	}
 	return err
 }

@@ -414,7 +414,7 @@ func (v *VFS) Open(ctx Context, ino Ino, flags uint32) (entry *meta.Entry, fh ui
 		return
 	}
 
-	err = v.Meta.Open(ctx, ino, flags, attr)
+	err = v.Meta.Open(ctx, ino, flags, attr, -1)
 	if err == 0 {
 		v.UpdateLength(ino, attr)
 		fh = v.newFileHandle(ino, attr.Length, flags)

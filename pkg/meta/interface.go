@@ -319,8 +319,8 @@ type Meta interface {
 	Readdir(ctx Context, inode Ino, wantattr uint8, entries *[]*Entry) syscall.Errno
 	// Create creates a file in a directory with given name.
 	Create(ctx Context, parent Ino, name string, mode uint16, cumask uint16, flags uint32, inode *Ino, attr *Attr) syscall.Errno
-	// Open checks permission on a node and track it as open.
-	Open(ctx Context, inode Ino, flags uint32, attr *Attr) syscall.Errno
+	// Open checks permission on a node and track it as open, you can override the default expire time of open cache.
+	Open(ctx Context, inode Ino, flags uint32, attr *Attr, expire time.Duration) syscall.Errno
 	// Close a file.
 	Close(ctx Context, inode Ino) syscall.Errno
 	// Read returns the list of slices on the given chunk.

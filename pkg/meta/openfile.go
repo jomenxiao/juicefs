@@ -15,6 +15,7 @@ type openFile struct {
 	attr      Attr
 	refs      int
 	lastCheck time.Time
+	expire    time.Duration
 	chunks    map[uint32][]Slice
 }
 
@@ -36,10 +37,13 @@ func newOpenFiles(expire time.Duration) *openfiles {
 func (o *openfiles) cleanup() {
 	for {
 		o.Lock()
-		cutoff := time.Now().Add(-time.Hour).Add(time.Second * time.Duration(len(o.files)/1e4))
 		var cnt, expired int
 		for ino, of := range o.files {
-			if of.refs <= 0 && of.lastCheck.Before(cutoff) {
+			expire := time.Hour - time.Second*time.Duration(len(o.files)/1e4)
+			if of.expire > 0 {
+				expire = of.expire
+			}
+			if of.refs <= 0 && time.Since(of.lastCheck) > expire {
 				delete(o.files, ino)
 				expired++
 			}
@@ -53,11 +57,18 @@ func (o *openfiles) cleanup() {
 	}
 }
 
+func (o *openfiles) getExpire(ofExpire time.Duration) time.Duration {
+	if ofExpire > 0 {
+		return ofExpire
+	}
+	return o.expire
+}
+
 func (o *openfiles) OpenCheck(ino Ino, attr *Attr) bool {
 	o.Lock()
 	defer o.Unlock()
 	of, ok := o.files[ino]
-	if ok && time.Since(of.lastCheck) < o.expire {
+	if ok && time.Since(of.lastCheck) < o.getExpire(of.expire) {
 		if attr != nil {
 			*attr = of.attr
 		}
@@ -67,7 +78,7 @@ func (o *openfiles) OpenCheck(ino Ino, attr *Attr) bool {
 	return false
 }
 
-func (o *openfiles) Open(ino Ino, attr *Attr) {
+func (o *openfiles) Open(ino Ino, attr *Attr, expire time.Duration) {
 	o.Lock()
 	defer o.Unlock()
 	of, ok := o.files[ino]
@@ -87,6 +98,7 @@ func (o *openfiles) Open(ino Ino, attr *Attr) {
 	of.attr.KeepCache = true
 	of.refs++
 	of.lastCheck = time.Now()
+	of.expire = expire
 }
 
 func (o *openfiles) Close(ino Ino) bool {
@@ -107,7 +119,7 @@ func (o *openfiles) Check(ino Ino, attr *Attr) bool {
 	o.Lock()
 	defer o.Unlock()
 	of, ok := o.files[ino]
-	if ok && time.Since(of.lastCheck) < o.expire {
+	if ok && time.Since(of.lastCheck) < o.getExpire(of.expire) {
 		*attr = of.attr
 		return true
 	}

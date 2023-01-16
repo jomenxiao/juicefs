@@ -71,10 +71,10 @@ $ juicefs warmup -f /tmp/filelist`,
 				Aliases: []string{"b"},
 				Usage:   "run in background",
 			},
-			&cli.BoolFlag{
-				Name:    "metadata",
-				Aliases: []string{"m"},
-				Usage:   "also warm up metadata",
+			&cli.StringFlag{
+				Name:    "opencache",
+				Aliases: []string{"o"},
+				Usage:   "the duration to expire metadata openCache, can be human readable",
 			},
 		},
 	}
@@ -119,24 +119,21 @@ END:
 }
 
 // send fill-cache command to controller file
-func sendCommand(cf *os.File, batch []string, threads uint, background, metadata bool, dspin *utils.DoubleSpinner) {
+func sendCommand(cf *os.File, batch []string, threads uint, background bool, openCache time.Duration, dspin *utils.DoubleSpinner) {
 	paths := strings.Join(batch, "\n")
-	var back, withMeta uint8
+	var back uint8
 	if background {
 		back = 1
 	}
-	if metadata {
-		withMeta = 1
-	}
 
-	wb := utils.NewBuffer(8 + 4 + 4 + uint32(len(paths)))
+	wb := utils.NewBuffer(8 + 4 + 3 + 8 + uint32(len(paths)))
 	wb.Put32(meta.FillCache)
-	wb.Put32(4 + 4 + uint32(len(paths)))
+	wb.Put32(4 + 3 + 8 + uint32(len(paths)))
 	wb.Put32(uint32(len(paths)))
 	wb.Put([]byte(paths))
 	wb.Put16(uint16(threads))
 	wb.Put8(back)
-	wb.Put8(withMeta)
+	wb.Put64(uint64(openCache))
 	if _, err := cf.Write(wb.Bytes()); err != nil {
 		logger.Fatalf("Write message: %s", err)
 	}
@@ -211,7 +208,15 @@ func warmup(ctx *cli.Context) error {
 		threads = 1
 	}
 	background := ctx.Bool("background")
-	metadata := ctx.Bool("metadata")
+	openCache := time.Duration(0)
+	if rawOpenCache := ctx.String("opencache"); rawOpenCache != "" {
+		var err error
+		openCache, err = time.ParseDuration(rawOpenCache)
+		if err != nil || openCache <= 0 {
+			logger.Fatalf("invalid opencache flag: %s", rawOpenCache)
+		}
+	}
+
 	start := len(mp)
 	batch := make([]string, 0, batchMax)
 	progress := utils.NewProgress(background, true)
@@ -231,12 +236,12 @@ func warmup(ctx *cli.Context) error {
 			continue
 		}
 		if len(batch) >= batchMax {
-			sendCommand(controller, batch, threads, background, metadata, dspin)
+			sendCommand(controller, batch, threads, background, openCache, dspin)
 			batch = batch[0:]
 		}
 	}
 	if len(batch) > 0 {
-		sendCommand(controller, batch, threads, background, metadata, dspin)
+		sendCommand(controller, batch, threads, background, openCache, dspin)
 	}
 	progress.Done()
 	if !background {

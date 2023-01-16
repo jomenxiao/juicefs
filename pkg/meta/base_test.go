@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
+// disable_mutate_test
+//
 //nolint:errcheck
-//disable_mutate_test
 package meta
 
 import (
@@ -377,10 +378,10 @@ func testMetaClient(t *testing.T, m Meta) {
 	// data
 	var sliceId uint64
 	// try to open a file that does not exist
-	if st := m.Open(ctx, 99999, syscall.O_RDWR, &Attr{}); st != syscall.ENOENT {
+	if st := m.Open(ctx, 99999, syscall.O_RDWR, &Attr{}, -1); st != syscall.ENOENT {
 		t.Fatalf("open not exist inode got %d, expected %d", st, syscall.ENOENT)
 	}
-	if st := m.Open(ctx, inode, syscall.O_RDWR, attr); st != 0 {
+	if st := m.Open(ctx, inode, syscall.O_RDWR, attr, -1); st != 0 {
 		t.Fatalf("open f: %s", st)
 	}
 	_ = m.Close(ctx, inode)
@@ -1187,7 +1188,7 @@ func testCloseSession(t *testing.T, m Meta) {
 	if st := m.Setlk(ctx, inode, 1, false, syscall.F_WRLCK, 0x10000, 0x20000, 1); st != 0 {
 		t.Fatalf("plock wlock: %s", st)
 	}
-	if st := m.Open(ctx, inode, syscall.O_RDWR, attr); st != 0 {
+	if st := m.Open(ctx, inode, syscall.O_RDWR, attr, -1); st != 0 {
 		t.Fatalf("open f: %s", st)
 	}
 	if st := m.Unlink(ctx, 1, "f"); st != 0 {
@@ -1405,7 +1406,7 @@ func testOpenCache(t *testing.T, m Meta) {
 		t.Fatalf("create f: %s", st)
 	}
 	defer m.Unlink(ctx, 1, "f")
-	if st := m.Open(ctx, inode, syscall.O_RDWR, attr); st != 0 {
+	if st := m.Open(ctx, inode, syscall.O_RDWR, attr, -1); st != 0 {
 		t.Fatalf("open f: %s", st)
 	}
 	defer m.Close(ctx, inode)
@@ -1447,7 +1448,7 @@ func testReadOnly(t *testing.T, m Meta) {
 	if st := m.Create(ctx, 1, "f", 0644, 022, 0, &inode, attr); st != syscall.EROFS {
 		t.Fatalf("create f: %s", st)
 	}
-	if st := m.Open(ctx, inode, syscall.O_RDWR, attr); st != syscall.EROFS {
+	if st := m.Open(ctx, inode, syscall.O_RDWR, attr, -1); st != syscall.EROFS {
 		t.Fatalf("open f: %s", st)
 	}
 }
@@ -1534,20 +1535,20 @@ func testAttrFlags(t *testing.T, m Meta) {
 	if st := m.SetAttr(ctx, inode, SetAttrFlag, 0, attr); st != 0 {
 		t.Fatalf("setattr f: %s", st)
 	}
-	if st := m.Open(ctx, inode, syscall.O_WRONLY, attr); st != syscall.EPERM {
+	if st := m.Open(ctx, inode, syscall.O_WRONLY, attr, -1); st != syscall.EPERM {
 		t.Fatalf("open f: %s", st)
 	}
-	if st := m.Open(ctx, inode, syscall.O_WRONLY|syscall.O_APPEND, attr); st != 0 {
+	if st := m.Open(ctx, inode, syscall.O_WRONLY|syscall.O_APPEND, attr, -1); st != 0 {
 		t.Fatalf("open f: %s", st)
 	}
 	attr.Flags = FlagAppend | FlagImmutable
 	if st := m.SetAttr(ctx, inode, SetAttrFlag, 0, attr); st != 0 {
 		t.Fatalf("setattr f: %s", st)
 	}
-	if st := m.Open(ctx, inode, syscall.O_WRONLY, attr); st != syscall.EPERM {
+	if st := m.Open(ctx, inode, syscall.O_WRONLY, attr, -1); st != syscall.EPERM {
 		t.Fatalf("open f: %s", st)
 	}
-	if st := m.Open(ctx, inode, syscall.O_WRONLY|syscall.O_APPEND, attr); st != syscall.EPERM {
+	if st := m.Open(ctx, inode, syscall.O_WRONLY|syscall.O_APPEND, attr, -1); st != syscall.EPERM {
 		t.Fatalf("open f: %s", st)
 	}
 

@@ -372,7 +372,7 @@ func (fs *FileSystem) Open(ctx meta.Context, path string, flags uint32) (f *File
 		} else if flags&vfs.MODE_MASK_W != 0 {
 			oflags = syscall.O_RDWR
 		}
-		err = fs.m.Open(ctx, fi.inode, oflags, fi.attr)
+		err = fs.m.Open(ctx, fi.inode, oflags, fi.attr, -1)
 		if err != 0 {
 			return
 		}
